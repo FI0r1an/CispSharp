@@ -1,0 +1,6 @@
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Debug\Cisp.csprojAssemblyReference.cache
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Debug\Cisp.exe.config
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Debug\Cisp.exe
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Debug\Cisp.pdb
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Debug\Cisp.exe
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Debug\Cisp.pdb
