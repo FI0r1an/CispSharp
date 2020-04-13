@@ -4,6 +4,7 @@ using System.Collections;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Cisp
 {
@@ -11,16 +12,24 @@ namespace Cisp
     {
         static void Main(string[] args)
         {
-            ParserState ps = new ParserState("(\r\n\t 1 2 (1 2 3))");
-            Parser p = new Parser(ps);
-            var tkv = (Queue)(p.ReadToken().Value);
-            foreach (Token item in tkv)
+            while (true)
             {
-                Console.WriteLine(item.Type.ToString());
-                Console.WriteLine(item.Value.ToString());
+                Console.Write("Run a .vcm file: ");
+                string file = Console.ReadLine();
+                try
+                { 
+                    VM vm = new VM(file);
+                    vm.Run();
+                }
+                catch
+                {
+                    Console.WriteLine("\"{0}\" Doesnt exist!", file);
+                }
+                finally
+                {
+                    Console.WriteLine("=========END=========");
+                }
             }
-            Console.WriteLine("=======End=======");
-            Console.ReadLine();
         }
     }
 }

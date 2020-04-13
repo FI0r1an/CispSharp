@@ -1,0 +1,6 @@
+0 LDC 0 1 1 1
+1 JEQ 2
+2 JMP 4
+3 ADD
+4 DIV
+5 PRINT

@@ -4,3 +4,4 @@ C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Debug\Cisp.exe
 C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Debug\Cisp.pdb
 C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Debug\Cisp.exe
 C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Debug\Cisp.pdb
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Debug\Cisp.csproj.CoreCompileInputs.cache

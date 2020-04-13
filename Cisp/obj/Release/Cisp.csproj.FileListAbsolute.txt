@@ -1,0 +1,7 @@
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Release\Cisp.exe.config
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Release\Cisp.exe
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\bin\Release\Cisp.pdb
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Release\Cisp.csprojAssemblyReference.cache
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Release\Cisp.csproj.CoreCompileInputs.cache
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Release\Cisp.exe
+C:\Users\Thinkpad\source\repos\Cisp\Cisp\obj\Release\Cisp.pdb
