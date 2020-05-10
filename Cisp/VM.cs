@@ -1,182 +1,267 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Collections;
+using System.Dynamic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using System.IO;
 
-namespace Cisp
+namespace CispVM
 {
-    enum CMD
+    enum STEP
     {
-        ADD, MIN, MUL, DIV, MOD, POW,
-        DUP, LD, ST, LDC, JLT, JLE, JGT, JGE, JEQ, JNE, JMP,
-        PRINT
-    }
-    struct Command
-    {
-        public CMD Name;
-        public float[] Argument;
-        public int Index;
+        NEXT,
+        ERROR,
+        JUMP,
+        HALT
     }
     class VM
     {
-        Stack VStack = new Stack();
-        ArrayList Memory = new ArrayList();
-        int CommandLength;
-        int Index = 0;
-        Command[] Commands;
-        public VM(string path)
+        private readonly Stack<Data> DStack;
+        private DataMemory DMem;
+        //private DataMemory BMem;
+        public DataMemory CMem;
+        private readonly Instruction[] IMem;
+
+        private const int MEM_SIZE = 128;
+        private const int STK_SIZE = 16;
+
+        private STEP Result;
+
+        private int IP;
+        public void Assert(bool b)
         {
-            string[] lines = File.ReadAllLines(path);
-            Commands = new Command[128];
-            foreach (var item in lines)
+            if (!b) throw new Exception($"ERROR: At Index{IP}");
+        }
+        public void Assert(bool b, string msg)
+        {
+            if (!b) throw new Exception($"{msg}: At Index{IP}");
+        }
+        public VM(Instruction[] imem)
+        {
+            DStack = new Stack<Data>(STK_SIZE); //data stack
+            //BMem = new DataMemory(STK_SIZE); //buffer memory
+            DMem = new DataMemory(MEM_SIZE); //data memory
+            CMem = new DataMemory(MEM_SIZE); //const memory
+            IMem = imem; //instruction memory
+            IP = 0; //instrucion pointer
+        }
+        private Data GetDataFromMemory(int idx)
+        {
+            return (idx + 1 <= MEM_SIZE) ? DMem[idx] : CMem[idx - MEM_SIZE];
+        }
+        private Data Pop()
+        {
+            Assert(DStack.Count > 0, "Out of range");
+            return DStack.Pop();
+        }
+        private void Push(Data data)
+        {
+            DStack.Push(data);
+        }
+        private void SetDataFromMemory(int idx, Data data)
+        {
+            Assert(idx + 1 <= MEM_SIZE, "Out of range");
+            DMem[idx] = data;
+        }
+        private void BinaryOperation(OPCODE opcode)
+        {
+            Data r = 0;
+            Data a2 = Pop(), a1 = Pop();
+            switch (opcode)
             {
-                string[] split = item.Split(' ');
-                //idx name arg1 arg2 arg3...
-                int idx;
-                int.TryParse(split[0], out idx);
-                Command cmd = new Command();
-                cmd.Index = idx;
-                try
-                {
-                    cmd.Name = (CMD)Enum.Parse(typeof(CMD), split[1]);
-                }
-                catch
-                {
-                    Console.WriteLine("ERROR COMMAND " + split[1]);
-                }
-                float[] args = new float[split.Length - 2];
-                for (int i = 2; i < split.Length; i++)
-                {
-                    float.TryParse(split[i], out args[i-2]);
-                }
-                cmd.Argument = args;
-                Commands[idx] = cmd;
+                case OPCODE.ADD:
+                    r = (double)a1 + a2;
+                    break;
+                case OPCODE.SUB:
+                    r = (double)a1 - a2;
+                    break;
+                case OPCODE.MUL:
+                    r = (double)a1 * a2;
+                    break;
+                case OPCODE.DIV:
+                    if (a2 == 0f) Result = STEP.ERROR;
+                    r = (double)a1 / a2;
+                    break;
+                case OPCODE.MOD:
+                    r = (double)a1 % a2;
+                    break;
+                case OPCODE.SHR:
+                    r = a1 >> a2;
+                    break;
+                case OPCODE.SHL:
+                    r = a1 << a2;
+                    break;
             }
-            CommandLength = Commands.Max(t => t.Index);
+            Push(r);
         }
-        float[] GetArgument()
+        private void UnaryOperation(OPCODE opcode)
         {
-            return Commands[Index].Argument;
-        }
-        CMD GetName()
-        {
-            return Commands[Index].Name;
-        }
-        public void Run()
-        {
-            try
+            Data r = 0;
+            Data a1 = Pop();
+            switch (opcode)
             {
-                while (Index <= CommandLength)
-                {
-                    Exec();
-                    Index++;
-                }
+                case OPCODE.NOT:
+                    r = !a1;
+                    break;
+                case OPCODE.INC:
+                    r = a1 + 1f;
+                    break;
+                case OPCODE.DEC:
+                    r = a1 - 1f;
+                    break;
             }
-            catch
-            {
-                Console.WriteLine("Something wrong with Command: {0} Index: {1}", GetName().ToString(), Index);
-            }
+            Push(r);
         }
-        public void Exec()
+        private void BinaryBoolOperation(OPCODE opcode)
         {
-            CMD name = GetName();
-            float[] arg = GetArgument();
-            float a1, a2;
-            float adr, val;
-            switch (name)
+            Data r = false;
+            Data a2 = Pop(), a1 = Pop();
+            switch (opcode)
             {
-                case CMD.ADD:
-                    a1 = (float)VStack.Pop();
-                    a2 = (float)VStack.Pop();
-                    VStack.Push(a1 + a2);
+                case OPCODE.LT:
+                    r = a1 < a2;
                     break;
-                case CMD.MIN:
-                    a1 = (float)VStack.Pop();
-                    a2 = (float)VStack.Pop();
-                    VStack.Push(a1 - a2);
+                case OPCODE.GT:
+                    r = a1 > a2;
                     break;
-                case CMD.MUL:
-                    a1 = (float)VStack.Pop();
-                    a2 = (float)VStack.Pop();
-                    VStack.Push(a1 * a2);
+                case OPCODE.LE:
+                    r = a1 <= a2;
                     break;
-                case CMD.DIV:
-                    a1 = (float)VStack.Pop();
-                    a2 = (float)VStack.Pop();
-                    VStack.Push(a1 / a2);
+                case OPCODE.GE:
+                    r = a1 >= a2;
                     break;
-                case CMD.PRINT:
-                    Console.WriteLine(VStack.Pop());
+                case OPCODE.EQ:
+                    r = ((double)a1 == a2) || ((bool)a1 == a2) || ((string)a1 == a2);
                     break;
-                case CMD.DUP:
-                    VStack.Push(VStack.Peek());
+                case OPCODE.NE:
+                    r = ((double)a1 != a2) || ((bool)a1 != a2) || ((string)a1 != a2);
                     break;
-                case CMD.LD:
-                    adr = (float)VStack.Pop();
-                    if (adr >= 0f)
-                    {
-                        VStack.Push(Memory[(int)adr]);
-                    }
+                case OPCODE.OR:
+                    r = a1 || a2;
                     break;
-                case CMD.ST:
-                    val = (float)VStack.Pop();
-                    adr = (float)VStack.Pop();
-                    if (adr >= 0f)
-                    {
-                        Memory[(int)adr] = val;
-                    }
+                case OPCODE.XOR:
+                    r = (bool)a1 != a2;
                     break;
-                case CMD.LDC:
-                    for (int i = 0; i < arg.Length; i++)
-                    {
-                        VStack.Push(arg[arg.Length-1-i]);
-                    }
+                case OPCODE.AND:
+                    r = a1 && a2;
                     break;
-                case CMD.JLT:
-                    if ((float)VStack.Pop() < 0f)
-                    {
-                        Index = (int)arg[0];
-                    }
+            }
+            Push(r);
+        }
+        private void InstLoad(int a)
+        {
+            Push(GetDataFromMemory(a));
+        }
+        private void InstStore(int a)
+        {
+            SetDataFromMemory(a, Pop());
+        }
+        private void InstDup()
+        {
+            if (DStack.Count <= 0) Result = STEP.ERROR;
+            Push(DStack.Peek());
+        }
+        private void InstPush(int a)
+        {
+            Push(a);
+        }
+        private void InstPop()
+        {
+            Pop();
+        }
+        private void InstJump(int a)
+        {
+            IP = a;
+            Result = STEP.JUMP;
+        }
+        private void InstJTrue(int a)
+        {
+            if (Pop()) IP = a;
+            Result = STEP.JUMP;
+        }
+        private void InstJFalse(int a)
+        {
+            if (!Pop()) IP = a;
+            Result = STEP.JUMP;
+        }
+        public void StepVM(Instruction current)
+        {
+            var opcode = current.Opcode;
+            int a = current.A;
+            Result = STEP.NEXT;
+            switch (opcode)
+            {
+                case OPCODE.HALT:
+                    Result = STEP.HALT; break;
+                case OPCODE.LOAD:
+                    InstLoad(a); break;
+                case OPCODE.STORE:
+                    InstStore(a); break;
+                case OPCODE.DUP:
+                    InstDup(); break;
+                case OPCODE.ADD:
+                case OPCODE.SUB:
+                case OPCODE.MUL:
+                case OPCODE.DIV:
+                case OPCODE.MOD:
+                case OPCODE.SHR:
+                case OPCODE.SHL:
+                    BinaryOperation(opcode); break;
+                case OPCODE.NOT:
+                case OPCODE.INC:
+                case OPCODE.DEC:
+                    UnaryOperation(opcode); break;
+                case OPCODE.PUSH:
+                    InstPush(a); break;
+                case OPCODE.POP:
+                    InstPop(); break;
+                case OPCODE.LT:
+                case OPCODE.GT:
+                case OPCODE.LE:
+                case OPCODE.GE:
+                case OPCODE.EQ:
+                case OPCODE.NE:
+                case OPCODE.OR:
+                case OPCODE.XOR:
+                case OPCODE.AND:
+                    BinaryBoolOperation(opcode); break;
+                case OPCODE.JTRUE:
+                    InstJTrue(a); break;
+                case OPCODE.JFALSE:
+                    InstJFalse(a); break;
+                case OPCODE.JMP:
+                    InstJump(a); break;
+                case OPCODE.CALL:
                     break;
-                case CMD.JLE:
-                    if ((float)VStack.Pop() <= 0f)
-                    {
-                        Index = (int)arg[0];
-                    }
+                case OPCODE.IN:
+                    Console.Write("Input: ");
+                    Push(double.Parse(Console.ReadLine()));
                     break;
-                case CMD.JGT:
-                    if ((float)VStack.Pop() > 0f)
-                    {
-                        Index = (int)arg[0];
-                    }
-                    break;
-                case CMD.JGE:
-                    if ((float)VStack.Pop() >= 0f)
-                    {
-                        Index = (int)arg[0];
-                    }
-                    break;
-                case CMD.JEQ:
-                    if ((float)VStack.Pop() == 0f)
-                    {
-                        Index = (int)arg[0];
-                    }
-                    break;
-                case CMD.JNE:
-                    if ((float)VStack.Pop() != 0f)
-                    {
-                        Index = (int)arg[0];
-                    }
-                    break;
-                case CMD.JMP:
-                    Index = (int)arg[0];
+                case OPCODE.OUT:
+                    Console.WriteLine($"Output: {Pop()}");
                     break;
                 default:
-                    Console.WriteLine("Unknown command: {0}", name.ToString());
-                    break;
+                    Result = STEP.ERROR; break;
+            }
+        }
+        public void Execute()
+        {
+            var len = IMem.Length;
+            for (; ; )
+            {
+                if (IP >= len) break;
+                StepVM(IMem[IP]);
+                switch (Result)
+                {
+                    case STEP.ERROR:
+                        throw new Exception("Error");
+                    case STEP.NEXT:
+                        IP++;
+                        break;
+                    case STEP.HALT:
+                        return;
+                }
             }
         }
     }
